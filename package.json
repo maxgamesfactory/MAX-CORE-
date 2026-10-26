@@ -1,0 +1,36 @@
+{
+  "name": "@max/core",
+  "version": "0.1.0",
+  "description": "Platform-neutral foundation for MAX products",
+  "type": "module",
+  "sideEffects": false,
+  "files": [
+    "dist",
+    "docs",
+    "README.md",
+    "intelligence/README.md"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./storage/server": {
+      "types": "./dist/storage/server/index.d.ts",
+      "import": "./dist/storage/server/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.test.json --noEmit",
+    "test": "npm run build && npm run typecheck && node --test tests/*.test.mjs",
+    "example": "npm run build && node examples/simulation.mjs"
+  },
+  "devDependencies": {
+    "typescript": "~5.9.3",
+    "fake-indexeddb": "^6.2.4"
+  },
+  "engines": {
+    "node": ">=22.13"
+  }
+}
