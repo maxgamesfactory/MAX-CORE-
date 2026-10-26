@@ -1,4 +1,4 @@
-# MAX-CORE
+# MAX-CORE-
 
 A platform-neutral TypeScript foundation for state, events, deterministic
 simulation, runtime services, adapters, and offline storage. No production
