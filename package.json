@@ -1,0 +1,41 @@
+{
+  "name": "@max-ecosystem/core",
+  "version": "0.1.0",
+  "description": "Portable runtime foundation for the MAX ecosystem",
+  "type": "module",
+  "private": true,
+  "engines": {
+    "node": "^22.13.0 || ^24.0.0 || >=26.0.0"
+  },
+  "files": [
+    "dist",
+    "docs",
+    "README.md"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./contracts": {
+      "types": "./dist/contracts/index.d.ts",
+      "import": "./dist/contracts/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "check:architecture": "node scripts/check-architecture.mjs",
+    "check": "npm run typecheck && npm run check:architecture && npm run test:coverage && npm run build",
+    "preview": "node scripts/preview.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "24.19.2",
+    "@vitest/coverage-v8": "5.0.5",
+    "fake-indexeddb": "6.2.6",
+    "typescript": "5.9.3",
+    "vitest": "5.0.5"
+  }
+}

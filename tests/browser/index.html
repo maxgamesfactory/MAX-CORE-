@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>MAX-CORE · Browser verification</title>
+  <style>
+    :root{color-scheme:dark;font-family:system-ui,sans-serif;background:#10151e;color:#eef2f9}
+    body{max-width:800px;margin:64px auto;padding:0 24px;line-height:1.6}
+    h1{letter-spacing:-1px;font-size:36px;margin-bottom:4px}p{color:#acbbd0}
+    pre{white-space:pre-wrap;padding:24px;background:#182232;border-radius:12px;border:1px solid #334155}
+    .pass{color:#86efac}.fail{color:#fca5a5}a{color:#93c5fd}
+  </style>
+</head>
+<body>
+  <h1>MAX-CORE</h1>
+  <p>Browser verification · built ES modules · no framework</p>
+  <h2 id="status">Running checks…</h2>
+  <pre id="results" aria-live="polite"></pre>
+  <p>This development harness verifies the portable library in your browser. Native device and deployed cloud integrations require host tests.</p>
+  <script type="module">
+    import { State, EventBus, Simulation, Kernel, IndexedDBStorage, MemoryStorage, SyncReplica, SyncAuthority, createWebAdapter, detectCapabilities, WebXRBridge, XRIntegration } from '/dist/index.js';
+    const log = document.getElementById('results');
+    const status = document.getElementById('status');
+    const checks = [];
+    const assert = (condition, message) => { if (!condition) throw new Error(message); };
+    async function check(name, work) {
+      try { await work(); checks.push({ name, passed: true }); }
+      catch (error) { checks.push({ name, passed: false, error: String(error) }); }
+      log.textContent = checks.map(item => `${item.passed ? 'PASS' : 'FAIL'}  ${item.name}${item.error ? `\n      ${item.error}` : ''}`).join('\n');
+    }
+    const state = new State({ tick: 0 });
+    const events = new EventBus();
+    const sim = new Simulation(0, { seed: 42, stepMs: 16, parameters: {} }, (current, frame) => current + frame.random());
+    await check('Immutable state and observable patches', () => {
+      let seen = 0; const off = state.subscribe(next => { seen = next.tick; }); state.patch({ tick: 1 }); off();
+      assert(seen === 1 && Object.isFrozen(state.get()), 'state snapshot');
+    });
+    await check('Typed bus runtime · async delivery and retry', async () => {
+      let tries = 0; const off = events.subscribe('tick', async value => { if (++tries < 2) throw new Error('retry'); state.patch({ tick: value }); });
+      await events.emit('tick', 2, { retries: 1 }); off(); assert(tries === 2 && state.get().tick === 2, 'event delivery');
+    });
+    await check('Seeded simulation · exact replay', () => {
+      sim.start(); sim.update(100); assert(sim.replay().get() === sim.get(), 'replay diverged');
+    });
+    await check('Runtime kernel · service lifecycle and cancellation', async () => {
+      const kernel = new Kernel(); let stopped = false;
+      kernel.register('probe', { stop: () => { stopped = true; } }); await kernel.start();
+      const handle = kernel.spawn('cancel', async context => context.signal.aborted); handle.cancel();
+      assert(await handle.result, 'process cancellation'); await kernel.stop(); assert(stopped && kernel.status === 'stopped', 'shutdown');
+    });
+    await check('Real IndexedDB · persistence and rehydration', async () => {
+      const name = `max-core-check-${crypto.randomUUID()}`;
+      const first = new IndexedDBStorage(name); const restored = new IndexedDBStorage(name);
+      try { await first.set('state', { tick: 20 }); assert((await restored.get('state')).tick === 20, 'rehydration'); await restored.remove('state'); }
+      finally { await first.close(); await restored.close(); indexedDB.deleteDatabase(name); }
+    });
+    await check('Offline queue · reconnect and conflict convergence', async () => {
+      const local = new MemoryStorage(); const authority = new SyncAuthority(new MemoryStorage()); let online = false;
+      const replica = new SyncReplica(local, { exchange: deltas => online ? authority.exchange(deltas) : Promise.reject(new Error('offline')) }, 'browser-a');
+      await replica.set('key', 1); try { await replica.flush(); } catch {}
+      assert(await replica.pending() === 1, 'offline queue lost'); online = true; await replica.flush();
+      const other = new SyncReplica(new MemoryStorage(), authority, 'browser-b'); await other.flush(); assert(await other.get('key') === 1, 'remote convergence');
+    });
+    await check('Platform probes · renderer and storage fallback', async () => {
+      const capabilities = await detectCapabilities(); const adapter = await createWebAdapter();
+      assert(adapter.platform === 'web' && ['webgpu','webgl','dom','none'].includes(capabilities.renderer), 'capabilities');
+      checks.push({ name: `Detected ${capabilities.browser} · ${capabilities.renderer} · memory ${capabilities.memoryClass}`, passed: true });
+    });
+    await check('Unavailable XR mode · graceful fallback to shared engines', async () => {
+      const xr = new XRIntegration(new WebXRBridge({ isSessionSupported: async () => false }), { state, events, simulation: sim, onError: () => undefined });
+      const outcome = await xr.start('immersive-vr'); assert(!outcome.supported && !xr.active && sim.status === 'running', 'XR fallback');
+    });
+    const passed = checks.every(check => check.passed);
+    window.maxCoreResult = { passed, checks };
+    status.textContent = passed ? 'All browser checks passed' : 'Browser checks failed';
+    status.className = passed ? 'pass' : 'fail';
+  </script>
+</body>
+</html>

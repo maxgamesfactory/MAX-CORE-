@@ -1,0 +1,13 @@
+export { hostEnvironment, detectPlatform, detectBrowser, detectRenderer, detectCapabilities, detectStorage, detectMemoryProfile, detectRuntime } from './detection.js';
+export type { DetectionEnvironment } from './detection.js';
+export { createPlatformAdapter } from './platform.js';
+export type { AdapterOptions } from './platform.js';
+export { createWebAdapter } from './web/index.js';
+export { createAndroidAdapter } from './android/index.js';
+export { createIosAdapter } from './ios/index.js';
+export { createDesktopAdapter } from './desktop/index.js';
+export { createXrAdapter } from './xr/index.js';
+export { XRIntegration } from './xr/session.js';
+export type { XREvents, XRDependencies } from './xr/session.js';
+export { WebXRBridge } from './xr/webxr.js';
+export type { WebXRInputEvent, WebXRSession, WebXRSystem } from './xr/webxr.js';
